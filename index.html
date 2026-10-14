@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cờ Vây 50×50</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:#18212f;color:white;
+font-family:Arial;text-align:center}
+h2{margin:8px}
+p{margin:8px}
+#board{width:min(94vw,560px);height:min(94vw,560px);
+display:block;margin:15px auto;background:#e9bd72;
+border-radius:4px;touch-action:manipulation}
+button{padding:11px 15px;margin:4px;border:0;
+border-radius:9px;font-size:16px;background:#f3d18b;color:#222}
+</style>
+</head>
+<body>
+<h2>X CỜ VÂY 19×19 O</h2>
+<p id="turn">Lượt: Đen</p>
+<canvas id="board"></canvas>
+<p id="info">Chạm vào giao điểm để đặt quân.</p>
+<button onclick="pass()">Bỏ lượt</button>
+<button onclick="reset()">Chơi lại</button>
+<script>
+const N=19, canvas=document.getElementById('board');
+const ctx=canvas.getContext('2d');
+let board, player, passes, ended, last;
+function reset(){
+ board=Array.from({length:N},()=>Array(N).fill(0));
+ player=1;passes=0;ended=false;last=null;
+ message('Chạm vào giao điểm để đặt quân.');
+ draw();
+}
+function message(s){document.getElementById('info').textContent=s}
+function draw(){
+ const d=canvas.clientWidth, ratio=devicePixelRatio||1;
+ canvas.width=d*ratio;canvas.height=d*ratio;
+ ctx.setTransform(ratio,0,0,ratio,0,0);
+ const pad=d/20, step=(d-2*pad)/(N-1);
+ ctx.fillStyle='#e9bd72';ctx.fillRect(0,0,d,d);
+ ctx.strokeStyle='#49351c';ctx.lineWidth=0.8;
+ for(let i=0;i<N;i++){
+  ctx.beginPath();ctx.moveTo(pad+i*step,pad);
+  ctx.lineTo(pad+i*step,d-pad);
+  ctx.moveTo(pad,pad+i*step);
+  ctx.lineTo(d-pad,pad+i*step);ctx.stroke();
+ }
+ for(let r of [3,9,15])for(let c of [3,9,15]){
+  ctx.beginPath();ctx.arc(pad+c*step,pad+r*step,2,0,7);
+  ctx.fillStyle='#49351c';ctx.fill();
+ }
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+  if(!board[r][c])continue;
+  ctx.beginPath();ctx.arc(pad+c*step,pad+r*step,step*.43,0,7);
+  ctx.fillStyle=board[r][c]===1?'#111':'#fff';
+  ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=.6;ctx.stroke();
+ }
+ document.getElementById('turn').textContent=
+ ended?'Ván đã kết thúc':('Lượt: '+(player===1?'Đen':'Trắng'));
+}
+function neighbors(r,c){
+ return [[r-1,c],[r+1,c],[r,c-1],[r,c+1]]
+ .filter(([a,b])=>a>=0&&a<N&&b>=0&&b<N);
+}
+function group(r,c){
+ const color=board[r][c], stones=[], liberties=new Set(), seen=new Set();
+ const stack=[[r,c]];
+ while(stack.length){
+  const [a,b]=stack.pop(), key=a+','+b;
+  if(seen.has(key))continue;seen.add(key);
+  stones.push([a,b]);
+  for(const [x,y] of neighbors(a,b)){
+   if(board[x][y]===0)liberties.add(x+','+y);
+   else if(board[x][y]===color&&!seen.has(x+','+y))stack.push([x,y]);
+  }
+ }
+ return {stones,liberties};
+}
+function move(r,c){
+ if(ended||board[r][c])return;
+ const before=board.map(row=>row.slice());
+ board[r][c]=player;
+ let captured=0;
+ for(const [x,y] of neighbors(r,c)){
+  if(board[x][y]===3-player){
+   const g=group(x,y);
+   if(g.liberties.size===0){
+    captured+=g.stones.length;
+    g.stones.forEach(([a,b])=>board[a][b]=0);
+   }
+  }
+ }
+ if(group(r,c).liberties.size===0){
+  board=before;message('Nước đi không hợp lệ: quân không có khí.');
+  draw();return;
+ }
+ passes=0;last=[r,c];player=3-player;
+ message(captured?'Đã bắt '+captured+' quân.':'Đã đặt quân.');
+ draw();
+}
+canvas.addEventListener('pointerdown',e=>{
+ const rect=canvas.getBoundingClientRect(),d=rect.width;
+ const pad=d/20,step=(d-2*pad)/(N-1);
+ const c=Math.round((e.clientX-rect.left-pad)/step);
+ const r=Math.round((e.clientY-rect.top-pad)/step);
+ if(r>=0&&r<N&&c>=0&&c<N&&
+ Math.abs(e.clientX-rect.left-(pad+c*step))<step*.48&&
+ Math.abs(e.clientY-rect.top-(pad+r*step))<step*.48)move(r,c);
+});
+function pass(){
+ if(ended)return;
+ passes++;player=3-player;
+ if(passes>=2){ended=true;message('Hai bên đã bỏ lượt. Hãy chơi lại để bắt đầu ván mới.');}
+ else message('Đã bỏ lượt.');
+ draw();
+}
+reset();
+</script>
+</body>
+  </html>
+  
